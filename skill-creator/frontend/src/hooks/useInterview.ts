@@ -5,6 +5,7 @@ import type {
   GenerateResponse,
   InterviewModelSelection,
 } from '../api'
+import { createUuid } from '../utils/uuid'
 
 export interface InterviewMessage {
   id: string
@@ -16,7 +17,7 @@ const createMessage = (
   role: InterviewMessage['role'],
   content: string,
 ): InterviewMessage => ({
-  id: crypto.randomUUID(),
+  id: createUuid(),
   role,
   content,
 })
