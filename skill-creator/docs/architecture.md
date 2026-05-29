@@ -24,7 +24,7 @@
     → { message, ready_to_generate: bool } 반환
     → ready_to_generate: false → 대화 계속
     → ready_to_generate: true → 자동으로 /generate 호출
-    → 사용자가 "지금까지 내용으로 생성"을 누르면 ready_to_generate 없이 /generate 호출
+    → 사용자가 수동 생성 action을 누르면 ready_to_generate 없이 /generate 호출
     → /generate 진행 중에는 프론트엔드가 deterministic 단계형 progress를 표시
 
 [생성]

@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react'
+import { useState } from 'react'
 import {
   BrowserRouter,
   Routes,
@@ -30,14 +30,17 @@ function AppShell() {
       <nav className="app-nav" aria-label="주요 메뉴">
         <div className="app-nav-inner">
           <Link to="/" className="nav-brand">
-            Skill Creator
+            <span className="nav-brand-name">Skill Creator</span>
           </Link>
-          <div className="nav-links">
-            <NewConversationLink onNewConversation={handleNewConversation} />
+          <div className="nav-links" aria-label="섹션">
+            <NavLink to="/" end className="nav-link">
+              대화
+            </NavLink>
             <NavLink to="/library" className="nav-link">
               라이브러리
             </NavLink>
           </div>
+          <NewConversationButton onNewConversation={handleNewConversation} />
         </div>
       </nav>
       <Routes>
@@ -55,18 +58,17 @@ interface NewConversationLinkProps {
   onNewConversation: () => void
 }
 
-function NewConversationLink({ onNewConversation }: NewConversationLinkProps) {
+function NewConversationButton({ onNewConversation }: NewConversationLinkProps) {
   const navigate = useNavigate()
 
-  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault()
+  function handleClick() {
     onNewConversation()
     navigate('/')
   }
 
   return (
-    <NavLink to="/" className="nav-link" onClick={handleClick}>
+    <button type="button" className="nav-action" onClick={handleClick}>
       새 대화
-    </NavLink>
+    </button>
   )
 }

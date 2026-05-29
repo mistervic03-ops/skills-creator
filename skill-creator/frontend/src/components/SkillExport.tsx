@@ -258,20 +258,6 @@ function MarkdownPreview({ markdown }: { markdown: string }) {
 
   return (
     <article className="export-document">
-      {metadata.length > 0 && (
-        <section className="export-metadata" aria-label="세부 정보">
-          <p className="export-metadata-title">세부 정보</p>
-          <dl className="export-metadata-list">
-            {metadata.map((item) => (
-              <div key={`${item.label}-${item.value}`} className="export-metadata-row">
-                <dt>{item.label}</dt>
-                <dd>{item.value || '미입력'}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
-
       <div className="export-document-body">
         {blocks.map((block, index) => {
           const key = `${block.type}-${index}`
@@ -325,6 +311,20 @@ function MarkdownPreview({ markdown }: { markdown: string }) {
           )
         })}
       </div>
+
+      {metadata.length > 0 && (
+        <section className="export-metadata" aria-label="세부 정보">
+          <p className="export-metadata-title">세부 정보</p>
+          <dl className="export-metadata-list">
+            {metadata.map((item) => (
+              <div key={`${item.label}-${item.value}`} className="export-metadata-row">
+                <dt>{item.label}</dt>
+                <dd>{item.value || '미입력'}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
     </article>
   )
 }
@@ -359,42 +359,44 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
     <section className="export-panel fade-in">
       <div className="export-header">
         <div>
-          <p className="eyebrow">Export</p>
           <h2>SKILL.md 내보내기</h2>
         </div>
-        <div className="export-actions">
+      </div>
+
+      <div className="export-toolbar">
+        <div className="export-mode-switch" aria-label="내보내기 보기 방식">
+          <button
+            type="button"
+            className={mode === 'preview' ? 'active' : ''}
+            onClick={() => setMode('preview')}
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            className={mode === 'markdown' ? 'active' : ''}
+            onClick={() => setMode('markdown')}
+          >
+            Markdown
+          </button>
+        </div>
+
+        <div className="export-actions" aria-label="문서 작업">
           <button
             type="button"
             onClick={downloadSkill}
-            className="button-primary"
+            className="export-action-button"
           >
             .md 다운로드
           </button>
           <button
             type="button"
             onClick={copySkill}
-            className="button-secondary"
+            className="export-action-button"
           >
             {copied ? '복사됨!' : '클립보드 복사'}
           </button>
         </div>
-      </div>
-
-      <div className="export-mode-switch" aria-label="내보내기 보기 방식">
-        <button
-          type="button"
-          className={mode === 'preview' ? 'active' : ''}
-          onClick={() => setMode('preview')}
-        >
-          Preview
-        </button>
-        <button
-          type="button"
-          className={mode === 'markdown' ? 'active' : ''}
-          onClick={() => setMode('markdown')}
-        >
-          Markdown
-        </button>
       </div>
 
       {mode === 'preview' ? (

@@ -1,4 +1,5 @@
 import {
+  Fragment,
   type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -65,6 +66,8 @@ export default function InterviewPage() {
   const [isExportVisible, setIsExportVisible] = useState(false)
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const conversationEndRef = useRef<HTMLDivElement | null>(null)
   const modelSelectorRef = useRef<HTMLDivElement | null>(null)
   const modelTriggerRef = useRef<HTMLButtonElement | null>(null)
   const modelOptionRefs = useRef<
@@ -77,7 +80,11 @@ export default function InterviewPage() {
   const isInputDisabled = isLoading || isGenerating || !sessionId || isReviewing
   const hasUserMessages = messages.some((message) => message.role === 'user')
   const isIntroOnly = !isExportVisible && !generateResult && !hasUserMessages
-  const isManualGenerateVisible = hasUserMessages && !isReviewing
+  const latestMessage = messages[messages.length - 1]
+  const latestInterviewerMessageId =
+    latestMessage?.role === 'interviewer' ? latestMessage.id : null
+  const isManualGenerateVisible =
+    hasUserMessages && !isReviewing && Boolean(latestInterviewerMessageId)
   const isManualGenerateDisabled = isLoading || isGenerating || !sessionId
   const selectedModelLabel =
     modelOptions.find((option) => option.value === selectedModel)?.label ??
@@ -121,6 +128,36 @@ export default function InterviewPage() {
     }
   }, [isModelMenuVisible, selectedModel])
 
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      return
+    }
+
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [draftMessage])
+
+  useEffect(() => {
+    if (isIntroOnly) {
+      return
+    }
+
+    conversationEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'end',
+    })
+  }, [
+    generationAttempt,
+    generationError,
+    isExportVisible,
+    isGenerating,
+    isIntroOnly,
+    isLoading,
+    messages.length,
+    visibleGenerateResult,
+  ])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -136,6 +173,19 @@ export default function InterviewPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+  }
+
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return
+    }
+
+    event.preventDefault()
+    event.currentTarget.form?.requestSubmit()
   }
 
   function handleEdit() {
@@ -221,23 +271,38 @@ export default function InterviewPage() {
               const isIntroPrompt = isIntroOnly && index === 0 && !isUser
 
               return (
-                <div
-                  key={message.id}
-                  className={`message-row fade-in ${
-                    isUser ? 'message-row-user' : 'message-row-interviewer'
-                  } ${isIntroPrompt ? 'message-row-intro-prompt' : ''}`}
-                >
-                  {isUser ? (
-                    <div className="message-content">{message.content}</div>
-                  ) : (
-                    <div
-                      className="message-content"
-                      dangerouslySetInnerHTML={{
-                        __html: renderInterviewerMarkdown(message.content),
-                      }}
-                    />
-                  )}
-                </div>
+                <Fragment key={message.id}>
+                  <div
+                    className={`message-row fade-in ${
+                      isUser ? 'message-row-user' : 'message-row-interviewer'
+                    } ${isIntroPrompt ? 'message-row-intro-prompt' : ''}`}
+                  >
+                    {isUser ? (
+                      <div className="message-content">{message.content}</div>
+                    ) : (
+                      <div
+                        className="message-content"
+                        dangerouslySetInnerHTML={{
+                          __html: renderInterviewerMarkdown(message.content),
+                        }}
+                      />
+                    )}
+                  </div>
+                  {!isUser &&
+                    isManualGenerateVisible &&
+                    message.id === latestInterviewerMessageId && (
+                      <div className="conversation-generate-row fade-in">
+                        <button
+                          type="button"
+                          onClick={handleManualGenerate}
+                          disabled={isManualGenerateDisabled}
+                          className="manual-generate-button"
+                        >
+                          지금 생성
+                        </button>
+                      </div>
+                    )}
+                </Fragment>
               )
             })}
 
@@ -274,26 +339,12 @@ export default function InterviewPage() {
           {visibleGenerateResult && isExportVisible && (
             <SkillExport skillMd={visibleGenerateResult.skill_md} />
           )}
+          <div ref={conversationEndRef} className="conversation-end" />
         </div>
       </main>
 
       {!isReviewing && (
-        <form
-          onSubmit={handleSubmit}
-          className="composer-wrap"
-        >
-          {isManualGenerateVisible && (
-            <div className="composer-action-row content-column">
-              <button
-                type="button"
-                onClick={handleManualGenerate}
-                disabled={isManualGenerateDisabled}
-                className="manual-generate-button"
-              >
-                지금까지 내용으로 생성
-              </button>
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="composer-wrap">
           <div className="composer content-column">
             <input
               ref={fileInputRef}
@@ -307,6 +358,16 @@ export default function InterviewPage() {
                 첨부 파일: {selectedFile.name}
               </div>
             )}
+            <textarea
+              ref={textareaRef}
+              value={draftMessage}
+              onChange={(event) => setDraftMessage(event.target.value)}
+              onKeyDown={handleComposerKeyDown}
+              disabled={isInputDisabled}
+              placeholder="반복하는 업무를 설명해주세요"
+              className="composer-input"
+              rows={1}
+            />
             <div className="composer-controls">
               <button
                 type="button"
@@ -383,13 +444,7 @@ export default function InterviewPage() {
                   </div>
                 )}
               </div>
-              <input
-                value={draftMessage}
-                onChange={(event) => setDraftMessage(event.target.value)}
-                disabled={isInputDisabled}
-                placeholder="업무를 편하게 설명해주세요"
-                className="composer-input"
-              />
+              <div className="composer-controls-spacer" aria-hidden="true" />
               <button
                 type="submit"
                 disabled={isInputDisabled || !draftMessage.trim()}

@@ -1,6 +1,7 @@
 import base64
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -13,9 +14,13 @@ from services.interviewer import (
     INTERVIEW_MODELS,
     START_INTERVIEW_MESSAGE,
     InterviewerService,
+    infer_workflow_type,
     interviewer_service,
     resolve_interview_model,
 )
+
+
+PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "interviewer.md"
 
 
 class FakeMessages:
@@ -157,6 +162,20 @@ def test_auto_model_routes_simple_workflows_to_haiku():
     assert model == INTERVIEW_MODELS["haiku"]
 
 
+@pytest.mark.parametrize(
+    ("message", "workflow_type"),
+    [
+        ("회의록을 보고서로 바꿔요.", "transformation"),
+        ("제안서를 검토하고 피드백을 줘요.", "review"),
+        ("경쟁사를 분석해서 인사이트를 정리해요.", "research"),
+        ("고객 인수인계 보고서를 작성해요.", "operational"),
+        ("Tableau vs Power BI 검토를 해요.", "decision_support"),
+    ],
+)
+def test_infer_workflow_type_uses_core_reasoning_process(message, workflow_type):
+    assert infer_workflow_type([{"role": "user", "content": message}]) == workflow_type
+
+
 def test_empty_chat_message_starts_interview_with_non_empty_content():
     fake_client = FakeAnthropicClient(["첫 질문입니다."])
     service = InterviewerService(client=fake_client)
@@ -172,6 +191,33 @@ def test_empty_chat_message_starts_interview_with_non_empty_content():
         "role": "user",
         "content": START_INTERVIEW_MESSAGE,
     }
+
+
+def test_interviewer_prompt_checks_capability_only_for_external_sources():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "외부 시스템 의존성이 보이지 않으면 묻지 마세요." in prompt
+    assert "Salesforce, Outlook, Slack, Confluence, Notion, Google Drive" in prompt
+    assert "직접 붙여넣기, 직접 제공, 파일 제공" in prompt
+    assert "Agent Capability가 있는 환경" in prompt
+    assert "구동 환경을 한 번도 묻지 않은 채로" not in prompt
+    assert "1~4가 파악된 후 반드시 한 번은 질문" not in prompt
+
+
+def test_interviewer_prompt_prioritizes_judgment_criteria_before_output():
+    prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "인터뷰어 시스템 프롬프트 v0.9" in prompt
+    assert "Task Collector가 아니라 Judgement Extractor" in prompt
+    assert "핵심 판단 기준" in prompt
+    assert "독자, 출력 형식, 공유 방식, 사용 도구, 트리거, 빈도보다 먼저" in prompt
+    assert (
+        "중요하게 보는 정보, 좋은 결과물의 기준, 판단 기준, 놓치면 안 되는 요소"
+        in prompt
+    )
+    assert "고객 히스토리를 볼 때 특히 중요하게 확인하는 정보" in prompt
+    assert "어떤 변화가 있으면 영업에 영향이 있다고 판단" in prompt
+    assert '"누가 보나요?", "어디에 공유하나요?", "몇 개를 보나요?"' in prompt
 
 
 def test_history_accumulates_by_session():

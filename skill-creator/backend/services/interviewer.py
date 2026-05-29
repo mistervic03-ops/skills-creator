@@ -27,6 +27,7 @@ WORKFLOW_TYPE_KEYWORDS = {
         "전략",
         "판단",
         "우선순위",
+        "vs",
     ),
     "research": (
         "조사",
@@ -46,15 +47,6 @@ WORKFLOW_TYPE_KEYWORDS = {
         "제안서 리뷰",
         "코드 리뷰",
     ),
-    "transformation": (
-        "요약",
-        "정리",
-        "변환",
-        "보고서",
-        "회의록",
-        "티켓",
-        "메일 작성",
-    ),
     "operational": (
         "운영",
         "주간 보고",
@@ -62,6 +54,14 @@ WORKFLOW_TYPE_KEYWORDS = {
         "인수인계",
         "관리",
         "반복",
+    ),
+    "transformation": (
+        "요약",
+        "정리",
+        "변환",
+        "회의록",
+        "티켓",
+        "메일 작성",
     ),
 }
 

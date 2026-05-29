@@ -23,7 +23,7 @@ const createMessage = (
 
 const errorMessage = '응답을 불러오지 못했어요. 백엔드 설정을 확인해주세요.'
 const generationErrorMessage = '생성 중 문제가 생겼어요. 다시 시도해 주세요.'
-const initialMessage = '안녕하세요.\n어떤 업무를 자주 반복하고 계세요?'
+const initialMessage = '어떤 업무를 자주 반복하고 계세요?'
 const generationCompletionDelayMs = 650
 
 export function useInterview() {

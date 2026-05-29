@@ -15,6 +15,7 @@ HTML로 급하게 만든 토이 프로젝트처럼 보이지 않게 하되, 과�
 - 전체 화면은 warm gray 배경 위에 아주 약한 conversation surface를 얹어, 순백의 데모 페이지처럼 보이지 않게 한다.
 - assistant 메시지는 말풍선 없이 본문처럼 흐르고, user 메시지만 오른쪽의 조용한 warm bubble로 구분한다.
 - composer는 content column과 같은 폭을 쓰며, 입력 가능한 표면으로 읽힐 정도의 낮은 elevation만 준다.
+- 수동 생성은 composer가 아니라 대화 상태에 붙은 inline action으로 둔다. 최신 assistant 메시지 아래에 `지금 생성`으로 짧게 표시한다.
 - Summary는 작업 확인 panel로 다루고, Export는 raw file dump가 아니라 읽기 좋은 workflow document preview를 기본 경험으로 둔다.
 
 ## 참고 이미지에서 가져갈 것
@@ -83,6 +84,14 @@ HTML로 급하게 만든 토이 프로젝트처럼 보이지 않게 하되, 과�
 - 각 메시지에 role label은 기본적으로 생략한다. 필요하면 screen reader용 label 또는 아주 작은 muted label만 고려한다.
 - 메시지 등장에는 `fade-in` 정도의 subtle animation만 적용한다.
 
+### Conversation Actions
+- 생성은 메시지 입력 기능이 아니라 인터뷰 workflow action이다. composer, attachment control, model selector, send button과 같은 위계에 두지 않는다.
+- 수동 생성 action은 최신 interviewer 메시지 아래에 배치해 “이 대화를 바탕으로 지금 할 수 있는 일”로 읽히게 한다.
+- label은 설명형 문장보다 짧은 action copy를 사용한다. 기본 copy는 `지금 생성`이다.
+- 시각 위계는 GitHub/Notion/Claude식 inline action에 가깝게 둔다. 작은 크기, neutral 색, subtle hover만 사용하고 primary CTA처럼 보이게 하지 않는다.
+- 기본 상태와 hover 상태는 같은 box model을 공유해야 한다. padding, border width, height, line-height, left edge가 변하지 않아야 하며 hover pill의 배경/테두리는 layout shift를 만들면 안 된다.
+- action text의 기본 left edge는 assistant message text와 정렬한다. hover surface가 생기더라도 텍스트가 옆으로 밀려 보이지 않아야 한다.
+
 ### Composer
 - 입력창은 하단 sticky 영역에 둔다.
 - composer 내부는 하나의 둥근 컨테이너로 만들고 `border-radius: 24px`를 적용한다.
@@ -136,7 +145,8 @@ HTML로 급하게 만든 토이 프로젝트처럼 보이지 않게 하되, 과�
 - assistant는 text-flow 기반 메시지 레이아웃으로 유지하고, user reply만 조용한 right-aligned bubble로 구분한다.
 - 인터뷰 답변 대기 상태는 작은 typing indicator로 표시하고, 생성 단계는 대화 영역 안의 조용한 단계형 progress UI로 표시한다.
 - 입력창은 하단 sticky composer가 되고, send 버튼은 내부 오른쪽 아이콘 버튼이 된다.
-- 사용자가 한 번 이상 메시지를 보낸 뒤에는 composer 위에 조용한 보조 버튼으로 수동 생성 진입을 제공한다.
+- composer는 Codex/ChatGPT처럼 텍스트 영역이 위에서 유연하게 늘어나고, 파일 첨부/모델 선택/전송 controls는 하단 toolbar에 고정된다.
+- 사용자가 한 번 이상 메시지를 보낸 뒤에는 최신 interviewer 메시지 아래에 조용한 inline action으로 수동 생성 진입을 제공한다.
 - composer의 기본 입력 row 안쪽 왼쪽에 `Auto / Haiku / Sonnet` 인터뷰 모델 선택을 조용한 custom dropdown으로 제공한다.
 - 파일 첨부 동작과 지원 확장자 검증은 그대로 유지한다.
 - 넓은 화면, 일반 노트북 폭, 모바일 폭에서 conversation column과 composer width가 안정적으로 맞는다.
@@ -161,6 +171,7 @@ HTML로 급하게 만든 토이 프로젝트처럼 보이지 않게 하되, 과�
 ### 5. `SkillExport.tsx`
 성공 기준:
 - 상단 actions와 preview 영역이 문서 export 화면처럼 정돈된다.
+- 다운로드/복사는 primary CTA가 아니라 export workflow에 속한 조용한 액션으로 보인다.
 - 기본 모드는 rendered preview이며, heading/list/paragraph/code/frontmatter를 읽기 좋은 workflow artifact로 렌더링한다.
 - ordered list preview는 markdown의 시작 번호를 보존해 중간 문단으로 list block이 나뉘어도 번호가 1로 리셋되지 않는다.
 - `Preview` / `Markdown` segmented control을 제공하고, preview를 기본값으로 둔다.
@@ -176,7 +187,7 @@ HTML로 급하게 만든 토이 프로젝트처럼 보이지 않게 하되, 과�
 1. `index.css` 디자인 토큰/reset 정리
    - verify: 기존 페이지가 깨지지 않고 build/lint가 통과한다.
 2. `App.tsx` nav class 전환
-   - verify: `/`, `/library` 이동이 유지된다.
+   - verify: brand identity, persistent navigation, 새 대화 action이 서로 다른 위계로 보이고 `/`, `/library` 이동이 유지된다.
 3. `InterviewPage.tsx` 채팅 레이아웃과 composer 개선
    - verify: 메시지 전송, 파일 첨부, loading/generating 상태, summary 전환이 유지된다.
 4. `SummaryCard.tsx` 검토 패널 스타일 개선
@@ -199,7 +210,8 @@ HTML로 급하게 만든 토이 프로젝트처럼 보이지 않게 하되, 과�
   - 사용자 메시지 전송 후 인터뷰어 응답 영역이 깨지지 않는다.
   - 파일 첨부 버튼과 선택 파일명이 표시된다.
   - 모델 선택은 composer 기본 입력 row의 왼쪽에 작고 조용한 custom dropdown으로 표시되며 기본값은 Auto다.
-  - 사용자 메시지 이후 "지금까지 내용으로 생성" 버튼이 composer 위에 표시되고, 생성 중에는 비활성화된다.
+  - 사용자 메시지 이후 `지금 생성` action이 최신 interviewer 메시지 아래에 표시되고, composer 안이나 composer 위에는 표시되지 않는다.
+  - `지금 생성` action은 default/hover 상태에서 left edge, padding, border width, height가 변하지 않는다.
   - 인터뷰 응답 대기와 스킬 생성 progress가 서로 다른 UI로 표시된다.
   - summary 확인 화면에서 확인/수정 버튼이 보인다.
   - export 화면에서 preview, 다운로드, 복사 버튼이 보인다.
