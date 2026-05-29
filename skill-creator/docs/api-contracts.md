@@ -1,7 +1,8 @@
 # API Contracts
 
 ## 공통
-- Base URL: `http://localhost:8000`
+- Local backend direct Base URL: `http://localhost:8000`
+- Docker frontend proxy Base URL: `/api`
 - Content-Type: `application/json`
 - 에러 응답: `{ "error": "메시지" }`
 
