@@ -10,6 +10,7 @@ export const api = axios.create({
 export interface ChatRequest {
   session_id: string
   message: string
+  model_preference: InterviewModelSelection
   files?: never[]
 }
 
@@ -30,8 +31,11 @@ export interface GenerateResponse {
     output_format: string
     audience: string
     environment: string
+    workflow_type: string
   }
 }
+
+export type InterviewModelSelection = 'auto' | 'haiku' | 'sonnet'
 
 export const chatApi = (data: ChatRequest) =>
   api.post<ChatResponse>('/chat', data)

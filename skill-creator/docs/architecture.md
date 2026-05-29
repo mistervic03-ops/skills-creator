@@ -9,19 +9,23 @@
 |---|---|---|
 | 백엔드 | FastAPI (Python) | |
 | 프론트엔드 | React + Vite (TypeScript) | |
-| 인터뷰 모델 | claude-haiku-4-5 | 속도/비용 우선 |
-| 생성 모델 | claude-sonnet-4-6 | 품질 우선 |
+| 인터뷰 모델 | Auto / claude-haiku-4-5 / claude-sonnet-4 | Auto는 단순 업무는 Haiku, 분석 업무는 Sonnet으로 라우팅 |
+| 생성 모델 | claude-sonnet-4 | 품질 우선 |
 | 세션 관리 | 메모리 내 dict | Phase 4에서 DB로 이전 예정 |
+| Python 포맷터 | Black | `pyproject.toml` 기준 |
 
 ## 전체 플로우
 ```
 [인터뷰 루프]
 사용자 입력
-    → POST /chat (system: interviewer.md + 전체 히스토리)
+    → POST /chat (system: interviewer.md + 전체 히스토리 + model_preference)
+    → model_preference가 auto이면 인터뷰 히스토리 기반으로 Haiku/Sonnet 선택
     → 응답에서 <READY_TO_GENERATE> 태그 감지
     → { message, ready_to_generate: bool } 반환
     → ready_to_generate: false → 대화 계속
     → ready_to_generate: true → 자동으로 /generate 호출
+    → 사용자가 "지금까지 내용으로 생성"을 누르면 ready_to_generate 없이 /generate 호출
+    → /generate 진행 중에는 프론트엔드가 deterministic 단계형 progress를 표시
 
 [생성]
 POST /generate (system: generator.md + 인터뷰 히스토리 전체)

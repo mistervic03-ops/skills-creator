@@ -16,9 +16,12 @@
 {
   "session_id": "string",
   "message": "string",
+  "model_preference": "auto | haiku | sonnet",
   "files": []          // Phase 3에서 구현. 현재는 빈 배열.
 }
 ```
+
+`model_preference` 기본값은 `auto`이며 인터뷰어 모델에만 적용된다. `/generate` 모델은 변경하지 않는다.
 
 ### Response
 ```json
@@ -58,7 +61,8 @@
     "inputs": "string",
     "output_format": "string",
     "audience": "string",
-    "environment": "string"
+    "environment": "string",
+    "workflow_type": "transformation | review | research | operational | decision_support"
   }
 }
 ```
@@ -68,9 +72,11 @@
 2. generator.md를 system으로, 히스토리 + 생성 지시를 messages로 Sonnet 호출
 3. 검증 레이어 실행:
    - description 필드가 영어인가
-   - 필수 섹션(## 언제 사용하나요, ## 시작 전 준비할 것, ## 출력 형식)이 존재하는가
+   - 필수 섹션(## When to Use, ## Inputs, ## Workflow, ## Output Format, ## Success Criteria, ## Validation Checklist)이 존재하는가
 4. 검증 실패 시 재생성 (최대 2회 재시도, 사용자 노출 없음)
-5. summary 추출 후 반환
+5. 응답을 `---SUMMARY---` 기준으로 분리해서 SKILL.md와 summary JSON을 반환
+   - summary JSON 파싱 실패 시 workflow_type은 `operational`, 나머지 summary 항목은 빈 문자열로 반환
+   - workflow_type이 없거나 허용된 5개 값 밖이면 `operational`로 반환
 
 ---
 

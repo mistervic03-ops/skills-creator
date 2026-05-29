@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from pathlib import Path
@@ -6,11 +7,37 @@ from typing import Optional
 from anthropic import Anthropic
 
 
-GENERATION_MODEL = "claude-sonnet-4-6-20250514"
+GENERATION_MODEL = "claude-sonnet-4-20250514"
 MAX_RETRIES = 2
+SUMMARY_SEPARATOR = "---SUMMARY---"
+SUMMARY_KEYS = (
+    "trigger",
+    "inputs",
+    "output_format",
+    "audience",
+    "environment",
+    "workflow_type",
+)
+VALID_WORKFLOW_TYPES = {
+    "transformation",
+    "review",
+    "research",
+    "operational",
+    "decision_support",
+}
+DEFAULT_WORKFLOW_TYPE = "operational"
 GENERATION_INSTRUCTION = (
     "지금까지의 인터뷰 히스토리를 바탕으로 SKILL.md 파일 내용을 생성하세요. "
-    "SKILL.md 본문만 출력하고, 설명이나 코드 블록은 포함하지 마세요."
+    "SKILL.md 전체 내용을 먼저 작성한 뒤, 아래 구분자와 함께 summary를 JSON으로 출력하세요.\n\n"
+    "---SUMMARY---\n"
+    "{\n"
+    '  "trigger": "When to Use 섹션 핵심 1문장",\n'
+    '  "inputs": "Inputs 섹션 핵심 1문장",\n'
+    '  "output_format": "Output Format 섹션 핵심 1문장",\n'
+    '  "audience": "이 스킬의 실제 결과물을 받는 사람 (인터뷰에서 파악된 실제 독자)",\n'
+    '  "environment": "Environment Setup 섹션 핵심 1문장, 없으면 빈 문자열",\n'
+    '  "workflow_type": "transformation | review | research | operational | decision_support 중 하나"\n'
+    "}"
 )
 KOREAN_RE = re.compile(r"[가-힣]")
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(?P<body>.*?)\n---", re.DOTALL)
@@ -24,16 +51,18 @@ class GeneratorService:
     def generate(self, history: list[dict[str, str]]) -> dict[str, object]:
         failures: list[str] = []
         skill_md = ""
+        summary = self._empty_summary()
 
         for _ in range(MAX_RETRIES + 1):
-            skill_md = self._call_model(history, failures)
+            response_text = self._call_model(history, failures)
+            skill_md, summary = self._split_generation_response(response_text)
             failures = self._validation_failures(skill_md)
             if not failures:
                 break
 
         return {
             "skill_md": skill_md,
-            "summary": self._extract_summary(skill_md),
+            "summary": summary,
         }
 
     def _call_model(
@@ -66,9 +95,12 @@ class GeneratorService:
             failures.append("frontmatter description 값에 한글이 포함되어 있습니다.")
 
         for section in (
-            "## 언제 사용하나요",
-            "## 시작 전 준비할 것",
-            "## 출력 형식",
+            "## When to Use",
+            "## Inputs",
+            "## Workflow",
+            "## Output Format",
+            "## Success Criteria",
+            "## Validation Checklist",
         ):
             if not self._has_section(skill_md, section):
                 failures.append(f"{section} 섹션이 없습니다.")
@@ -120,52 +152,44 @@ class GeneratorService:
 
     @staticmethod
     def _has_section(skill_md: str, section: str) -> bool:
-        return re.search(rf"^{re.escape(section)}\s*$", skill_md, re.MULTILINE) is not None
-
-    @classmethod
-    def _extract_summary(cls, skill_md: str) -> dict[str, str]:
-        return {
-            "trigger": cls._first_sentence(cls._section_body(skill_md, "언제 사용하나요")),
-            "inputs": cls._first_sentence(cls._section_body(skill_md, "시작 전 준비할 것")),
-            "output_format": cls._first_sentence(cls._section_body(skill_md, "출력 형식")),
-            "audience": cls._first_tag(skill_md),
-            "environment": cls._first_sentence(cls._section_body(skill_md, "사용 전 확인사항")),
-        }
-
-    @staticmethod
-    def _section_body(skill_md: str, heading: str) -> str:
-        pattern = rf"^## {re.escape(heading)}\s*$\n(?P<body>.*?)(?=^## |\Z)"
-        match = re.search(pattern, skill_md, re.MULTILINE | re.DOTALL)
-        if not match:
-            return ""
-        return match.group("body").strip()
-
-    @staticmethod
-    def _first_sentence(text: str) -> str:
-        normalized = " ".join(
-            line.strip().lstrip("-*0123456789. ").strip()
-            for line in text.splitlines()
-            if line.strip()
+        return (
+            re.search(rf"^{re.escape(section)}\s*$", skill_md, re.MULTILINE) is not None
         )
-        if not normalized:
-            return ""
-
-        match = re.search(r".+?[.!?。！？](?:\s|$)", normalized)
-        if match:
-            return match.group(0).strip()
-        return normalized
 
     @classmethod
-    def _first_tag(cls, skill_md: str) -> str:
-        tags = cls._frontmatter_value(skill_md, "tags")
-        if not tags:
-            return ""
+    def _split_generation_response(
+        cls, response_text: str
+    ) -> tuple[str, dict[str, str]]:
+        if SUMMARY_SEPARATOR not in response_text:
+            return response_text.strip(), cls._empty_summary()
 
-        if tags.startswith("[") and tags.endswith("]"):
-            tags = tags[1:-1]
+        skill_md, summary_text = response_text.split(SUMMARY_SEPARATOR, 1)
+        return skill_md.strip(), cls._parse_summary(summary_text)
 
-        first_tag = tags.split(",", 1)[0].strip()
-        return first_tag.strip("\"'")
+    @classmethod
+    def _parse_summary(cls, summary_text: str) -> dict[str, str]:
+        try:
+            parsed = json.loads(summary_text.strip())
+        except json.JSONDecodeError:
+            return cls._empty_summary()
+
+        if not isinstance(parsed, dict):
+            return cls._empty_summary()
+
+        summary: dict[str, str] = {}
+        for key in SUMMARY_KEYS:
+            value = parsed.get(key, "")
+            summary[key] = value if isinstance(value, str) else ""
+        if summary["workflow_type"] not in VALID_WORKFLOW_TYPES:
+            summary["workflow_type"] = DEFAULT_WORKFLOW_TYPE
+        return summary
+
+    @staticmethod
+    def _empty_summary() -> dict[str, str]:
+        return {
+            key: DEFAULT_WORKFLOW_TYPE if key == "workflow_type" else ""
+            for key in SUMMARY_KEYS
+        }
 
 
 generator_service = GeneratorService()

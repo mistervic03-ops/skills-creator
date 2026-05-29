@@ -1,3 +1,4 @@
+import base64
 import os
 import sys
 from types import SimpleNamespace
@@ -8,7 +9,13 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import app
-from services.interviewer import InterviewerService, interviewer_service
+from services.interviewer import (
+    INTERVIEW_MODELS,
+    START_INTERVIEW_MESSAGE,
+    InterviewerService,
+    interviewer_service,
+    resolve_interview_model,
+)
 
 
 class FakeMessages:
@@ -48,7 +55,8 @@ def test_create_session_endpoint():
 
 
 def test_chat_endpoint_uses_session_history():
-    interviewer_service._client = FakeAnthropicClient(["첫 질문입니다."])
+    fake_client = FakeAnthropicClient(["첫 질문입니다."])
+    interviewer_service._client = fake_client
     client = TestClient(app)
     session_id = client.post("/sessions").json()["session_id"]
 
@@ -70,6 +78,100 @@ def test_chat_endpoint_uses_session_history():
         {"role": "user", "content": "회의록 요약을 자주 해요."},
         {"role": "assistant", "content": "첫 질문입니다."},
     ]
+    assert fake_client.messages.calls[0]["model"] == INTERVIEW_MODELS["haiku"]
+
+
+def test_chat_endpoint_uses_manual_sonnet_selection():
+    fake_client = FakeAnthropicClient(["질문입니다."])
+    interviewer_service._client = fake_client
+    client = TestClient(app)
+    session_id = client.post("/sessions").json()["session_id"]
+
+    response = client.post(
+        "/chat",
+        json={
+            "session_id": session_id,
+            "message": "회의록 요약을 자주 해요.",
+            "model_preference": "sonnet",
+            "files": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert fake_client.messages.calls[0]["model"] == INTERVIEW_MODELS["sonnet"]
+
+
+def test_chat_endpoint_accepts_multipart_file_content_blocks():
+    fake_client = FakeAnthropicClient(["첨부를 확인했어요."])
+    interviewer_service._client = fake_client
+    client = TestClient(app)
+    session_id = client.post("/sessions").json()["session_id"]
+
+    response = client.post(
+        "/chat",
+        data={
+            "session_id": session_id,
+            "message": "첨부 파일을 봐주세요.",
+            "model_preference": "sonnet",
+        },
+        files={"file": ("sample.pdf", b"pdf-bytes", "application/pdf")},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "첨부를 확인했어요.",
+        "ready_to_generate": False,
+    }
+    assert fake_client.messages.calls[0]["messages"][0] == {
+        "role": "user",
+        "content": [
+            {
+                "type": "document",
+                "source": {
+                    "type": "base64",
+                    "media_type": "application/pdf",
+                    "data": base64.b64encode(b"pdf-bytes").decode("utf-8"),
+                },
+            },
+            {"type": "text", "text": "첨부 파일을 봐주세요."},
+        ],
+    }
+    assert fake_client.messages.calls[0]["model"] == INTERVIEW_MODELS["sonnet"]
+
+
+def test_auto_model_routes_complex_workflows_to_sonnet():
+    model = resolve_interview_model(
+        "auto",
+        [{"role": "user", "content": "경쟁사 리서치와 전략 옵션 비교를 자주 해요."}],
+    )
+
+    assert model == INTERVIEW_MODELS["sonnet"]
+
+
+def test_auto_model_routes_simple_workflows_to_haiku():
+    model = resolve_interview_model(
+        "auto",
+        [{"role": "user", "content": "회의록을 요약해서 보고서로 정리해요."}],
+    )
+
+    assert model == INTERVIEW_MODELS["haiku"]
+
+
+def test_empty_chat_message_starts_interview_with_non_empty_content():
+    fake_client = FakeAnthropicClient(["첫 질문입니다."])
+    service = InterviewerService(client=fake_client)
+    session_id = service.create_session()
+
+    response = service.chat(session_id, "")
+
+    assert response == {
+        "message": "첫 질문입니다.",
+        "ready_to_generate": False,
+    }
+    assert fake_client.messages.calls[0]["messages"][0] == {
+        "role": "user",
+        "content": START_INTERVIEW_MESSAGE,
+    }
 
 
 def test_history_accumulates_by_session():

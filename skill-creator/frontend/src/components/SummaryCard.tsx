@@ -20,25 +20,13 @@ export default function SummaryCard({
   onEdit,
 }: SummaryCardProps) {
   return (
-    <section
-      style={{
-        border: '1px solid var(--border)',
-        borderRadius: '8px',
-        background: 'var(--bg)',
-        boxShadow: 'var(--shadow)',
-        padding: '20px',
-      }}
-    >
-      <h2 style={{ marginBottom: '16px' }}>생성 내용 확인</h2>
+    <section className="summary-panel fade-in">
+      <div className="summary-panel-header">
+        <p className="eyebrow">Review</p>
+        <h2>생성 내용 확인</h2>
+      </div>
 
-      <dl
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(108px, 160px) 1fr',
-          gap: '12px 16px',
-          margin: 0,
-        }}
-      >
+      <dl className="summary-list">
         {rows.map(([label, key]) => {
           const value = summary[key]
 
@@ -47,73 +35,26 @@ export default function SummaryCard({
           }
 
           return (
-            <div
-              key={key}
-              style={{
-                display: 'contents',
-              }}
-            >
-              <dt
-                style={{
-                  color: 'var(--text)',
-                  fontWeight: 600,
-                }}
-              >
-                {label}
-              </dt>
-              <dd
-                style={{
-                  margin: 0,
-                  color: 'var(--text-h)',
-                  lineHeight: 1.5,
-                  wordBreak: 'keep-all',
-                  overflowWrap: 'anywhere',
-                }}
-              >
-                {value}
-              </dd>
+            <div key={key} className="summary-row">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
             </div>
           )
         })}
       </dl>
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '10px',
-          marginTop: '20px',
-        }}
-      >
+      <div className="summary-actions">
         <button
           type="button"
           onClick={onConfirm}
-          style={{
-            border: '1px solid var(--accent-border)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            font: 'inherit',
-            fontWeight: 600,
-            color: 'var(--text-h)',
-            background: 'var(--accent-bg)',
-            cursor: 'pointer',
-          }}
+          className="button-primary"
         >
           맞아요, 저장할게요
         </button>
         <button
           type="button"
           onClick={onEdit}
-          style={{
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            font: 'inherit',
-            fontWeight: 600,
-            color: 'var(--text-h)',
-            background: 'var(--bg)',
-            cursor: 'pointer',
-          }}
+          className="button-secondary"
         >
           수정할게요
         </button>

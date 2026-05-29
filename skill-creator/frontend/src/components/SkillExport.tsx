@@ -1,8 +1,42 @@
-import { useState } from 'react'
+import {
+  Fragment,
+  type ReactNode,
+  useMemo,
+  useState,
+} from 'react'
 
 interface SkillExportProps {
   skillMd: string
 }
+
+type ExportMode = 'preview' | 'markdown'
+
+interface MetadataItem {
+  label: string
+  value: string
+}
+
+type MarkdownBlock =
+  | {
+      type: 'heading'
+      depth: number
+      text: string
+    }
+  | {
+      type: 'paragraph'
+      lines: string[]
+    }
+  | {
+      type: 'list'
+      ordered: boolean
+      start?: number
+      items: string[]
+    }
+  | {
+      type: 'code'
+      language: string
+      code: string
+    }
 
 function timestamp() {
   const now = new Date()
@@ -18,11 +52,292 @@ function timestamp() {
   ].join('')
 }
 
+function splitFrontmatter(markdown: string) {
+  const normalizedMarkdown = markdown.replace(/\r\n/g, '\n')
+  const frontmatterMatch = normalizedMarkdown.match(/^---\n([\s\S]*?)\n---\n?/)
+
+  if (!frontmatterMatch) {
+    return {
+      metadata: [] as MetadataItem[],
+      body: normalizedMarkdown,
+    }
+  }
+
+  const metadata = frontmatterMatch[1]
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => {
+      const separatorIndex = line.indexOf(':')
+
+      if (separatorIndex === -1) {
+        return {
+          label: line,
+          value: '',
+        }
+      }
+
+      return {
+        label: line.slice(0, separatorIndex).trim(),
+        value: line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, ''),
+      }
+    })
+    .filter((item) => item.label)
+
+  return {
+    metadata,
+    body: normalizedMarkdown.slice(frontmatterMatch[0].length),
+  }
+}
+
+function isHeading(line: string) {
+  return /^(#{1,4})\s+/.test(line)
+}
+
+function isListItem(line: string) {
+  return /^\s*(?:[-*]|\d+[.)])\s+/.test(line)
+}
+
+function isBlockStart(line: string) {
+  return line.trim().startsWith('```') || isHeading(line) || isListItem(line)
+}
+
+function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n')
+  const blocks: MarkdownBlock[] = []
+  let index = 0
+
+  while (index < lines.length) {
+    const line = lines[index]
+    const trimmedLine = line.trim()
+
+    if (!trimmedLine) {
+      index += 1
+      continue
+    }
+
+    if (trimmedLine.startsWith('```')) {
+      const language = trimmedLine.slice(3).trim()
+      const codeLines: string[] = []
+      index += 1
+
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        codeLines.push(lines[index])
+        index += 1
+      }
+
+      if (index < lines.length) {
+        index += 1
+      }
+
+      blocks.push({
+        type: 'code',
+        language,
+        code: codeLines.join('\n'),
+      })
+      continue
+    }
+
+    const headingMatch = line.match(/^(#{1,4})\s+(.+)$/)
+    if (headingMatch) {
+      blocks.push({
+        type: 'heading',
+        depth: headingMatch[1].length,
+        text: headingMatch[2].trim(),
+      })
+      index += 1
+      continue
+    }
+
+    const unorderedMatch = line.match(/^\s*[-*]\s+(.+)$/)
+    const orderedMatch = line.match(/^\s*(\d+)[.)]\s+(.+)$/)
+    if (unorderedMatch || orderedMatch) {
+      const ordered = Boolean(orderedMatch)
+      const start = orderedMatch ? Number(orderedMatch[1]) : undefined
+      const items: string[] = []
+
+      while (index < lines.length) {
+        const itemMatch = ordered
+          ? lines[index].match(/^\s*\d+[.)]\s+(.+)$/)
+          : lines[index].match(/^\s*[-*]\s+(.+)$/)
+
+        if (!itemMatch) {
+          break
+        }
+
+        items.push(itemMatch[1].trim())
+        index += 1
+      }
+
+      blocks.push({
+        type: 'list',
+        ordered,
+        start,
+        items,
+      })
+      continue
+    }
+
+    const paragraphLines: string[] = []
+
+    while (index < lines.length) {
+      const paragraphLine = lines[index]
+
+      if (!paragraphLine.trim() || isBlockStart(paragraphLine)) {
+        break
+      }
+
+      paragraphLines.push(paragraphLine.trim())
+      index += 1
+    }
+
+    blocks.push({
+      type: 'paragraph',
+      lines: paragraphLines,
+    })
+  }
+
+  return blocks
+}
+
+function renderInlineMarkdown(text: string, keyPrefix: string) {
+  const nodes: ReactNode[] = []
+  const tokenPattern = /(\*\*[^*]+\*\*|`[^`]+`)/g
+  let lastIndex = 0
+  let tokenIndex = 0
+
+  for (const match of text.matchAll(tokenPattern)) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index))
+    }
+
+    const token = match[0]
+    const key = `${keyPrefix}-${tokenIndex}`
+
+    if (token.startsWith('**')) {
+      nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>)
+    } else {
+      nodes.push(<code key={key}>{token.slice(1, -1)}</code>)
+    }
+
+    lastIndex = match.index + token.length
+    tokenIndex += 1
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex))
+  }
+
+  return nodes
+}
+
+function renderInlineLines(lines: string[], keyPrefix: string) {
+  return lines.map((line, index) => (
+    <Fragment key={`${keyPrefix}-${index}`}>
+      {index > 0 && <br />}
+      {renderInlineMarkdown(line, `${keyPrefix}-${index}`)}
+    </Fragment>
+  ))
+}
+
+function MarkdownPreview({ markdown }: { markdown: string }) {
+  const { metadata, body } = useMemo(
+    () => splitFrontmatter(markdown),
+    [markdown],
+  )
+  const blocks = useMemo(() => parseMarkdownBlocks(body), [body])
+  const isEmpty = !markdown.trim()
+
+  if (isEmpty) {
+    return (
+      <div className="export-document export-document-empty">
+        생성된 스킬 내용이 아직 없습니다.
+      </div>
+    )
+  }
+
+  return (
+    <article className="export-document">
+      {metadata.length > 0 && (
+        <section className="export-metadata" aria-label="세부 정보">
+          <p className="export-metadata-title">세부 정보</p>
+          <dl className="export-metadata-list">
+            {metadata.map((item) => (
+              <div key={`${item.label}-${item.value}`} className="export-metadata-row">
+                <dt>{item.label}</dt>
+                <dd>{item.value || '미입력'}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
+      <div className="export-document-body">
+        {blocks.map((block, index) => {
+          const key = `${block.type}-${index}`
+
+          if (block.type === 'heading') {
+            const HeadingTag = `h${Math.min(block.depth + 1, 4)}` as
+              | 'h2'
+              | 'h3'
+              | 'h4'
+
+            return (
+              <HeadingTag key={key} className={`export-doc-heading depth-${block.depth}`}>
+                {renderInlineMarkdown(block.text, key)}
+              </HeadingTag>
+            )
+          }
+
+          if (block.type === 'list') {
+            const ListTag = block.ordered ? 'ol' : 'ul'
+
+            return (
+              <ListTag
+                key={key}
+                className="export-doc-list"
+                start={block.ordered ? block.start : undefined}
+              >
+                {block.items.map((item, itemIndex) => (
+                  <li key={`${key}-${itemIndex}`}>
+                    {renderInlineMarkdown(item, `${key}-${itemIndex}`)}
+                  </li>
+                ))}
+              </ListTag>
+            )
+          }
+
+          if (block.type === 'code') {
+            return (
+              <pre key={key} className="export-doc-code">
+                {block.language && (
+                  <span className="export-doc-code-label">{block.language}</span>
+                )}
+                <code>{block.code}</code>
+              </pre>
+            )
+          }
+
+          return (
+            <p key={key} className="export-doc-paragraph">
+              {renderInlineLines(block.lines, key)}
+            </p>
+          )
+        })}
+      </div>
+    </article>
+  )
+}
+
 export default function SkillExport({ skillMd }: SkillExportProps) {
   const [copied, setCopied] = useState(false)
+  const [mode, setMode] = useState<ExportMode>('preview')
+  const [currentMarkdown, setCurrentMarkdown] = useState(() => skillMd)
 
   function downloadSkill() {
-    const blob = new Blob([skillMd], { type: 'text/markdown;charset=utf-8' })
+    const blob = new Blob([currentMarkdown], {
+      type: 'text/markdown;charset=utf-8',
+    })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
@@ -35,91 +350,69 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
   }
 
   async function copySkill() {
-    await navigator.clipboard.writeText(skillMd)
+    await navigator.clipboard.writeText(currentMarkdown)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <section
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <h2 style={{ margin: 0 }}>SKILL.md 내보내기</h2>
-        <div
-          style={{
-            display: 'flex',
-            gap: '10px',
-            flexWrap: 'wrap',
-          }}
-        >
+    <section className="export-panel fade-in">
+      <div className="export-header">
+        <div>
+          <p className="eyebrow">Export</p>
+          <h2>SKILL.md 내보내기</h2>
+        </div>
+        <div className="export-actions">
           <button
             type="button"
             onClick={downloadSkill}
-            style={{
-              border: '1px solid var(--accent-border)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              font: 'inherit',
-              fontWeight: 600,
-              color: 'var(--text-h)',
-              background: 'var(--accent-bg)',
-              cursor: 'pointer',
-            }}
+            className="button-primary"
           >
             .md 다운로드
           </button>
           <button
             type="button"
             onClick={copySkill}
-            style={{
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              font: 'inherit',
-              fontWeight: 600,
-              color: 'var(--text-h)',
-              background: 'var(--bg)',
-              cursor: 'pointer',
-            }}
+            className="button-secondary"
           >
             {copied ? '복사됨!' : '클립보드 복사'}
           </button>
         </div>
       </div>
 
-      <pre
-        style={{
-          maxHeight: 'min(620px, 64svh)',
-          overflow: 'auto',
-          margin: 0,
-          padding: '16px',
-          border: '1px solid var(--border)',
-          borderRadius: '8px',
-          background: 'var(--code-bg)',
-          color: 'var(--text-h)',
-          fontFamily: 'var(--mono)',
-          fontSize: '14px',
-          lineHeight: 1.55,
-          textAlign: 'left',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      >
-        {skillMd}
-      </pre>
+      <div className="export-mode-switch" aria-label="내보내기 보기 방식">
+        <button
+          type="button"
+          className={mode === 'preview' ? 'active' : ''}
+          onClick={() => setMode('preview')}
+        >
+          Preview
+        </button>
+        <button
+          type="button"
+          className={mode === 'markdown' ? 'active' : ''}
+          onClick={() => setMode('markdown')}
+        >
+          Markdown
+        </button>
+      </div>
+
+      {mode === 'preview' ? (
+        <MarkdownPreview markdown={currentMarkdown} />
+      ) : (
+        <div className="export-markdown-mode">
+          <p className="export-mode-helper">
+            고급 수정 모드입니다. 수정한 내용이 복사와 다운로드에 반영됩니다.
+          </p>
+          <textarea
+            value={currentMarkdown}
+            onChange={(event) => setCurrentMarkdown(event.target.value)}
+            className="export-markdown-editor"
+            aria-label="SKILL.md 마크다운 수정"
+            spellCheck={false}
+          />
+        </div>
+      )}
     </section>
   )
 }

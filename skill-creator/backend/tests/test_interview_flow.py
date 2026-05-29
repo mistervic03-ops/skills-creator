@@ -69,8 +69,7 @@ def test_seventh_turn_forces_completion_with_ready_tag():
     session_id = service.create_session()
 
     responses = [
-        service.chat(session_id, f"{turn}번째 답변입니다.")
-        for turn in range(1, 8)
+        service.chat(session_id, f"{turn}번째 답변입니다.") for turn in range(1, 8)
     ]
 
     assert all(response["ready_to_generate"] is False for response in responses[:6])
@@ -103,7 +102,10 @@ def test_revision_after_completion_keeps_history_and_continues_interview():
     assert completed_response["ready_to_generate"] is True
     assert revision_response["ready_to_generate"] is False
     assert len(history_after_revision) == len(history_after_completion) + 2
-    assert history_after_revision[: len(history_after_completion)] == history_after_completion
+    assert (
+        history_after_revision[: len(history_after_completion)]
+        == history_after_completion
+    )
     assert history_after_revision[-2] == {
         "role": "user",
         "content": "수정할게요. 독자는 팀장입니다.",

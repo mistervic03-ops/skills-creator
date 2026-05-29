@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from api.routes import router
 
 app = FastAPI(title="Skill Creator API")
@@ -13,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
 
 @app.get("/health")
 def health():
