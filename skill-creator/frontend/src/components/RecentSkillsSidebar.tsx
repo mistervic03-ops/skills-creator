@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getSkillApi, type SkillDetail } from '../api'
+import { copyTextToClipboard } from '../utils/clipboard'
 import {
   RECENT_SKILLS_UPDATED_EVENT,
   readRecentSkills,
@@ -79,9 +80,13 @@ export default function RecentSkillsSidebar({
     }
 
     try {
-      await navigator.clipboard.writeText(selectedSkill.skill_md)
+      const copyResult = await copyTextToClipboard(selectedSkill.skill_md)
       setCopyStatus('success')
-      setCopyMessage('스킬 내용을 복사했습니다.')
+      setCopyMessage(
+        copyResult === 'copied'
+          ? '스킬 내용을 복사했습니다.'
+          : '자동 복사가 제한되어 내용을 선택했습니다. Ctrl/Cmd+C로 복사해주세요.',
+      )
     } catch {
       setCopyStatus('error')
       setCopyMessage('클립보드에 복사하지 못했습니다.')

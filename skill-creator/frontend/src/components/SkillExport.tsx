@@ -5,6 +5,7 @@ import {
   useState,
 } from 'react'
 import { saveSkillApi } from '../api'
+import { copyTextToClipboard } from '../utils/clipboard'
 import { trackRecentSkill } from '../utils/recentSkills'
 
 interface SkillExportProps {
@@ -12,6 +13,7 @@ interface SkillExportProps {
 }
 
 type ExportMode = 'preview' | 'markdown'
+type CopyStatus = 'idle' | 'copied' | 'selected'
 type SaveStatus = 'idle' | 'saving' | 'success' | 'error'
 
 interface MetadataItem {
@@ -333,7 +335,7 @@ function MarkdownPreview({ markdown }: { markdown: string }) {
 }
 
 export default function SkillExport({ skillMd }: SkillExportProps) {
-  const [copied, setCopied] = useState(false)
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle')
   const [mode, setMode] = useState<ExportMode>('preview')
   const [currentMarkdown, setCurrentMarkdown] = useState(() => skillMd)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -356,9 +358,9 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
   }
 
   async function copySkill() {
-    await navigator.clipboard.writeText(currentMarkdown)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 2000)
+    const copyResult = await copyTextToClipboard(currentMarkdown)
+    setCopyStatus(copyResult === 'copied' ? 'copied' : 'selected')
+    window.setTimeout(() => setCopyStatus('idle'), 2000)
   }
 
   async function saveToLibrary() {
@@ -427,7 +429,11 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
             onClick={copySkill}
             className="export-action-button"
           >
-            {copied ? '복사됨!' : '클립보드 복사'}
+            {copyStatus === 'copied'
+              ? '복사됨!'
+              : copyStatus === 'selected'
+                ? '선택됨'
+                : '클립보드 복사'}
           </button>
         </div>
       </div>

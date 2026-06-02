@@ -11,6 +11,7 @@ import {
   type SkillDetail,
   type SkillMetadata,
 } from '../api'
+import { copyTextToClipboard } from '../utils/clipboard'
 import { removeRecentSkill, trackRecentSkill } from '../utils/recentSkills'
 
 type ActionStatus = 'idle' | 'success' | 'error'
@@ -189,9 +190,13 @@ export default function LibraryPage() {
     }
 
     try {
-      await navigator.clipboard.writeText(selectedSkill.skill_md)
+      const copyResult = await copyTextToClipboard(selectedSkill.skill_md)
       setActionStatus('success')
-      setActionMessage('스킬 내용을 클립보드에 복사했습니다.')
+      setActionMessage(
+        copyResult === 'copied'
+          ? '스킬 내용을 클립보드에 복사했습니다.'
+          : '자동 복사가 제한되어 내용을 선택했습니다. Ctrl/Cmd+C로 복사해주세요.',
+      )
     } catch {
       setActionStatus('error')
       setActionMessage('클립보드에 복사하지 못했습니다.')
