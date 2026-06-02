@@ -91,3 +91,101 @@
   "session_id": "string"
 }
 ```
+
+---
+
+## POST /skills
+
+생성된 SKILL.md 내용을 로컬 파일시스템에 저장한다.
+
+### Request
+```json
+{
+  "skill_md": "string",
+  "author": "string optional"
+}
+```
+
+### Response
+```json
+{
+  "id": "string",
+  "title": "string",
+  "description": "string",
+  "workflow_type": "string",
+  "tags": [],
+  "author": "string",
+  "created_at": "string",
+  "updated_at": "string"
+}
+```
+
+### 동작
+- 서버에서 안전한 고유 id를 생성한다.
+- `SKILL_LIBRARY_DIR` 아래 `<id>/skill.md`와 `<id>/metadata.json`을 저장한다.
+- frontmatter의 `name`, `description`, `tags`, `workflow_type`을 metadata에 반영한다.
+- title은 frontmatter `name`, 첫 번째 H1, `Untitled Skill` 순서로 결정한다.
+- author가 없으면 `작성자 미상`을 사용한다.
+
+---
+
+## GET /skills
+
+저장된 스킬 metadata 목록을 최신순으로 반환한다.
+
+### Query
+- `q` optional: `title`, `description`, `workflow_type`, `tags`, `author` 검색
+
+### Response
+```json
+[
+  {
+    "id": "string",
+    "title": "string",
+    "description": "string",
+    "workflow_type": "string",
+    "tags": [],
+    "author": "string",
+    "created_at": "string",
+    "updated_at": "string"
+  }
+]
+```
+
+metadata 파일이 없거나 손상된 항목은 fallback metadata로 반환한다.
+
+---
+
+## GET /skills/{id}
+
+저장된 스킬 metadata와 markdown 본문을 반환한다.
+
+### Response
+```json
+{
+  "metadata": {
+    "id": "string",
+    "title": "string",
+    "description": "string",
+    "workflow_type": "string",
+    "tags": [],
+    "author": "string",
+    "created_at": "string",
+    "updated_at": "string"
+  },
+  "skill_md": "string"
+}
+```
+
+---
+
+## DELETE /skills/{id}
+
+저장된 스킬 디렉터리를 삭제한다.
+
+### Response
+```json
+{
+  "deleted": true
+}
+```

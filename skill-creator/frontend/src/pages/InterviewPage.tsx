@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react'
 import GenerationProgress from '../components/GenerationProgress'
+import RecentSkillsSidebar from '../components/RecentSkillsSidebar'
 import SkillExport from '../components/SkillExport'
 import SummaryCard from '../components/SummaryCard'
 import { useInterview } from '../hooks/useInterview'
@@ -65,6 +66,7 @@ export default function InterviewPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isExportVisible, setIsExportVisible] = useState(false)
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
+  const [isRecentSkillsVisible, setIsRecentSkillsVisible] = useState(true)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const conversationEndRef = useRef<HTMLDivElement | null>(null)
@@ -257,207 +259,225 @@ export default function InterviewPage() {
 
   return (
     <div className="interview-page">
-      <main className="interview-main">
-        <div
-          className={`conversation ${
-            isExportVisible ? 'content-column-wide' : 'content-column'
-          } ${
-            isIntroOnly ? 'conversation-intro' : ''
-          }`}
-        >
-          {!isExportVisible &&
-            messages.map((message, index) => {
-              const isUser = message.role === 'user'
-              const isIntroPrompt = isIntroOnly && index === 0 && !isUser
+      <div className="interview-workspace">
+        {isRecentSkillsVisible ? (
+          <RecentSkillsSidebar
+            onCollapse={() => setIsRecentSkillsVisible(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="recent-sidebar-restore"
+            onClick={() => setIsRecentSkillsVisible(true)}
+            aria-label="최근 스킬 사이드바 열기"
+            title="최근 스킬 열기"
+          >
+            <span aria-hidden="true" />
+          </button>
+        )}
 
-              return (
-                <Fragment key={message.id}>
-                  <div
-                    className={`message-row fade-in ${
-                      isUser ? 'message-row-user' : 'message-row-interviewer'
-                    } ${isIntroPrompt ? 'message-row-intro-prompt' : ''}`}
-                  >
-                    {isUser ? (
-                      <div className="message-content">{message.content}</div>
-                    ) : (
-                      <div
-                        className="message-content"
-                        dangerouslySetInnerHTML={{
-                          __html: renderInterviewerMarkdown(message.content),
-                        }}
-                      />
-                    )}
-                  </div>
-                  {!isUser &&
-                    isManualGenerateVisible &&
-                    message.id === latestInterviewerMessageId && (
-                      <div className="conversation-generate-row fade-in">
-                        <button
-                          type="button"
-                          onClick={handleManualGenerate}
-                          disabled={isManualGenerateDisabled}
-                          className="manual-generate-button"
-                        >
-                          지금 생성
-                        </button>
-                      </div>
-                    )}
-                </Fragment>
-              )
-            })}
+        <main className="interview-main">
+          <div
+            className={`conversation ${
+              isExportVisible ? 'content-column-wide' : 'content-column'
+            } ${
+              isIntroOnly ? 'conversation-intro' : ''
+            }`}
+          >
+            {!isExportVisible &&
+              messages.map((message, index) => {
+                const isUser = message.role === 'user'
+                const isIntroPrompt = isIntroOnly && index === 0 && !isUser
 
-          {!isExportVisible && isLoading && hasUserMessages && (
-            <div className="status-row fade-in">
-              <div className="typing-indicator" aria-live="polite">
-                <span>생각 중</span>
-                <span className="typing-dots" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </div>
-            </div>
-          )}
+                return (
+                  <Fragment key={message.id}>
+                    <div
+                      className={`message-row fade-in ${
+                        isUser ? 'message-row-user' : 'message-row-interviewer'
+                      } ${isIntroPrompt ? 'message-row-intro-prompt' : ''}`}
+                    >
+                      {isUser ? (
+                        <div className="message-content">{message.content}</div>
+                      ) : (
+                        <div
+                          className="message-content"
+                          dangerouslySetInnerHTML={{
+                            __html: renderInterviewerMarkdown(message.content),
+                          }}
+                        />
+                      )}
+                    </div>
+                    {!isUser &&
+                      isManualGenerateVisible &&
+                      message.id === latestInterviewerMessageId && (
+                        <div className="conversation-generate-row fade-in">
+                          <button
+                            type="button"
+                            onClick={handleManualGenerate}
+                            disabled={isManualGenerateDisabled}
+                            className="manual-generate-button"
+                          >
+                            지금 생성
+                          </button>
+                        </div>
+                      )}
+                  </Fragment>
+                )
+              })}
 
-          {!isExportVisible && (isGenerating || generationError) && (
-            <GenerationProgress
-              key={generationAttempt}
-              isComplete={isGenerationFinalizing}
-              errorMessage={generationError}
-              onRetry={generateFromCurrentInterview}
-            />
-          )}
-
-          {visibleGenerateResult && !isExportVisible && (
-            <SummaryCard
-              summary={visibleGenerateResult.summary}
-              onConfirm={() => setIsExportVisible(true)}
-              onEdit={handleEdit}
-            />
-          )}
-
-          {visibleGenerateResult && isExportVisible && (
-            <SkillExport skillMd={visibleGenerateResult.skill_md} />
-          )}
-          <div ref={conversationEndRef} className="conversation-end" />
-        </div>
-      </main>
-
-      {!isReviewing && (
-        <form onSubmit={handleSubmit} className="composer-wrap">
-          <div className="composer content-column">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={supportedFileAccept}
-              onChange={handleFileChange}
-              className="visually-hidden"
-            />
-            {selectedFile && (
-              <div className="selected-file">
-                첨부 파일: {selectedFile.name}
+            {!isExportVisible && isLoading && hasUserMessages && (
+              <div className="status-row fade-in">
+                <div className="typing-indicator" aria-live="polite">
+                  <span>생각 중</span>
+                  <span className="typing-dots" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </div>
               </div>
             )}
-            <textarea
-              ref={textareaRef}
-              value={draftMessage}
-              onChange={(event) => setDraftMessage(event.target.value)}
-              onKeyDown={handleComposerKeyDown}
-              disabled={isInputDisabled}
-              placeholder="반복하는 업무를 설명해주세요"
-              className="composer-input"
-              rows={1}
-            />
-            <div className="composer-controls">
-              <button
-                type="button"
-                onClick={handleAttachClick}
-                disabled={isInputDisabled}
-                className="composer-icon-button"
-                aria-label="파일 첨부"
-                title="파일 첨부"
-              >
-                +
-              </button>
-              <div
-                className="model-selector"
-                ref={modelSelectorRef}
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsModelMenuOpen(false)
-                  }
-                }}
-              >
-                <button
-                  ref={modelTriggerRef}
-                  type="button"
-                  className="model-selector-trigger"
-                  onClick={() =>
-                    setIsModelMenuOpen((currentValue) => !currentValue)
-                  }
-                  onKeyDown={handleModelTriggerKeyDown}
-                  disabled={isInputDisabled}
-                  aria-haspopup="listbox"
-                  aria-expanded={isModelMenuVisible}
-                  aria-label="모델 선택"
-                >
-                  <span>{selectedModelLabel}</span>
-                  <span className="model-selector-chevron" aria-hidden="true">
-                    ⌄
-                  </span>
-                </button>
-                {isModelMenuVisible && (
-                  <div className="model-menu" role="listbox">
-                    {modelOptions.map((option) => {
-                      const isSelected = selectedModel === option.value
 
-                      return (
-                        <button
-                          key={option.value}
-                          ref={(element) => {
-                            modelOptionRefs.current[option.value] = element
-                          }}
-                          type="button"
-                          className={`model-menu-option ${
-                            isSelected ? 'selected' : ''
-                          }`}
-                          onPointerDown={(event) => {
-                            event.preventDefault()
-                            selectModel(option.value)
-                          }}
-                          onKeyDown={(event) =>
-                            handleModelOptionKeyDown(event, option.value)
-                          }
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <span
-                            className="model-menu-check"
-                            aria-hidden="true"
-                          >
-                            {isSelected ? '✓' : ''}
-                          </span>
-                          <span>{option.label}</span>
-                        </button>
-                      )
-                    })}
+            {!isExportVisible && (isGenerating || generationError) && (
+              <GenerationProgress
+                key={generationAttempt}
+                isComplete={isGenerationFinalizing}
+                errorMessage={generationError}
+                onRetry={generateFromCurrentInterview}
+              />
+            )}
+
+            {visibleGenerateResult && !isExportVisible && (
+              <SummaryCard
+                summary={visibleGenerateResult.summary}
+                onConfirm={() => setIsExportVisible(true)}
+                onEdit={handleEdit}
+              />
+            )}
+
+            {visibleGenerateResult && isExportVisible && (
+              <SkillExport skillMd={visibleGenerateResult.skill_md} />
+            )}
+            <div ref={conversationEndRef} className="conversation-end" />
+          </div>
+
+          {!isReviewing && (
+            <form onSubmit={handleSubmit} className="composer-wrap">
+              <div className="composer content-column">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={supportedFileAccept}
+                  onChange={handleFileChange}
+                  className="visually-hidden"
+                />
+                {selectedFile && (
+                  <div className="selected-file">
+                    첨부 파일: {selectedFile.name}
                   </div>
                 )}
+                <textarea
+                  ref={textareaRef}
+                  value={draftMessage}
+                  onChange={(event) => setDraftMessage(event.target.value)}
+                  onKeyDown={handleComposerKeyDown}
+                  disabled={isInputDisabled}
+                  placeholder="반복하는 업무를 설명해주세요"
+                  className="composer-input"
+                  rows={1}
+                />
+                <div className="composer-controls">
+                  <button
+                    type="button"
+                    onClick={handleAttachClick}
+                    disabled={isInputDisabled}
+                    className="composer-icon-button"
+                    aria-label="파일 첨부"
+                    title="파일 첨부"
+                  >
+                    +
+                  </button>
+                  <div
+                    className="model-selector"
+                    ref={modelSelectorRef}
+                    onBlur={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) {
+                        setIsModelMenuOpen(false)
+                      }
+                    }}
+                  >
+                    <button
+                      ref={modelTriggerRef}
+                      type="button"
+                      className="model-selector-trigger"
+                      onClick={() =>
+                        setIsModelMenuOpen((currentValue) => !currentValue)
+                      }
+                      onKeyDown={handleModelTriggerKeyDown}
+                      disabled={isInputDisabled}
+                      aria-haspopup="listbox"
+                      aria-expanded={isModelMenuVisible}
+                      aria-label="모델 선택"
+                    >
+                      <span>{selectedModelLabel}</span>
+                      <span className="model-selector-chevron" aria-hidden="true">
+                        ⌄
+                      </span>
+                    </button>
+                    {isModelMenuVisible && (
+                      <div className="model-menu" role="listbox">
+                        {modelOptions.map((option) => {
+                          const isSelected = selectedModel === option.value
+
+                          return (
+                            <button
+                              key={option.value}
+                              ref={(element) => {
+                                modelOptionRefs.current[option.value] = element
+                              }}
+                              type="button"
+                              className={`model-menu-option ${
+                                isSelected ? 'selected' : ''
+                              }`}
+                              onPointerDown={(event) => {
+                                event.preventDefault()
+                                selectModel(option.value)
+                              }}
+                              onKeyDown={(event) =>
+                                handleModelOptionKeyDown(event, option.value)
+                              }
+                              role="option"
+                              aria-selected={isSelected}
+                            >
+                              <span
+                                className="model-menu-check"
+                                aria-hidden="true"
+                              >
+                                {isSelected ? '✓' : ''}
+                              </span>
+                              <span>{option.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="composer-controls-spacer" aria-hidden="true" />
+                  <button
+                    type="submit"
+                    disabled={isInputDisabled || !draftMessage.trim()}
+                    className="composer-send-button"
+                    aria-label="전송"
+                    title="전송"
+                  >
+                    ↑
+                  </button>
+                </div>
               </div>
-              <div className="composer-controls-spacer" aria-hidden="true" />
-              <button
-                type="submit"
-                disabled={isInputDisabled || !draftMessage.trim()}
-                className="composer-send-button"
-                aria-label="전송"
-                title="전송"
-              >
-                ↑
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
+            </form>
+          )}
+        </main>
+      </div>
     </div>
   )
 }

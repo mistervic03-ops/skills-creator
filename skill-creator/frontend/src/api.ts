@@ -35,6 +35,22 @@ export interface GenerateResponse {
   }
 }
 
+export interface SkillMetadata {
+  id: string
+  title: string
+  description: string
+  workflow_type: string
+  tags: string[]
+  author: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SkillDetail {
+  metadata: SkillMetadata
+  skill_md: string
+}
+
 export type InterviewModelSelection = 'auto' | 'haiku' | 'sonnet'
 
 export const chatApi = (data: ChatRequest) =>
@@ -45,3 +61,17 @@ export const generateApi = (data: GenerateRequest) =>
 
 export const createSessionApi = () =>
   api.post<{ session_id: string }>('/sessions')
+
+export const saveSkillApi = (skillMd: string) =>
+  api.post<SkillMetadata>('/skills', { skill_md: skillMd })
+
+export const listSkillsApi = (query = '') =>
+  api.get<SkillMetadata[]>('/skills', {
+    params: query ? { q: query } : undefined,
+  })
+
+export const getSkillApi = (skillId: string) =>
+  api.get<SkillDetail>(`/skills/${skillId}`)
+
+export const deleteSkillApi = (skillId: string) =>
+  api.delete<{ deleted: true }>(`/skills/${skillId}`)

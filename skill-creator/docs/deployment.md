@@ -24,6 +24,10 @@ Set the required Anthropic API key:
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
+Generated skills are stored on the local filesystem. The storage path is
+controlled by `SKILL_LIBRARY_DIR` and defaults to `./data/skills`. An external
+database is intentionally not used for V1.
+
 Do not commit `.env` or real API keys.
 
 ## Build

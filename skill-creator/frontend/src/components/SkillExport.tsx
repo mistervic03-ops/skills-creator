@@ -4,12 +4,15 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { saveSkillApi } from '../api'
+import { trackRecentSkill } from '../utils/recentSkills'
 
 interface SkillExportProps {
   skillMd: string
 }
 
 type ExportMode = 'preview' | 'markdown'
+type SaveStatus = 'idle' | 'saving' | 'success' | 'error'
 
 interface MetadataItem {
   label: string
@@ -333,6 +336,9 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
   const [copied, setCopied] = useState(false)
   const [mode, setMode] = useState<ExportMode>('preview')
   const [currentMarkdown, setCurrentMarkdown] = useState(() => skillMd)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [saveMessage, setSaveMessage] = useState('')
+  const isSaving = saveStatus === 'saving'
 
   function downloadSkill() {
     const blob = new Blob([currentMarkdown], {
@@ -353,6 +359,25 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
     await navigator.clipboard.writeText(currentMarkdown)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function saveToLibrary() {
+    if (isSaving) {
+      return
+    }
+
+    setSaveStatus('saving')
+    setSaveMessage('')
+
+    try {
+      const response = await saveSkillApi(currentMarkdown)
+      trackRecentSkill(response.data)
+      setSaveStatus('success')
+      setSaveMessage(`라이브러리에 저장됨: ${response.data.title}`)
+    } catch {
+      setSaveStatus('error')
+      setSaveMessage('저장하지 못했습니다. 잠시 후 다시 시도해주세요.')
+    }
   }
 
   return (
@@ -384,6 +409,14 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
         <div className="export-actions" aria-label="문서 작업">
           <button
             type="button"
+            onClick={saveToLibrary}
+            className="export-action-button export-action-button-primary"
+            disabled={isSaving}
+          >
+            {isSaving ? '저장 중...' : 'Save to Library'}
+          </button>
+          <button
+            type="button"
             onClick={downloadSkill}
             className="export-action-button"
           >
@@ -398,6 +431,16 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
           </button>
         </div>
       </div>
+
+      {saveMessage && (
+        <p
+          className={`export-save-status export-save-status-${saveStatus}`}
+          role={saveStatus === 'error' ? 'alert' : 'status'}
+          aria-live="polite"
+        >
+          {saveMessage}
+        </p>
+      )}
 
       {mode === 'preview' ? (
         <MarkdownPreview markdown={currentMarkdown} />
