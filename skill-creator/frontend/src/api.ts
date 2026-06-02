@@ -51,6 +51,12 @@ export interface SkillDetail {
   skill_md: string
 }
 
+export interface SaveSkillRequest {
+  skill_md: string
+  title: string
+  author?: string
+}
+
 export type InterviewModelSelection = 'auto' | 'haiku' | 'sonnet'
 
 export const chatApi = (data: ChatRequest) =>
@@ -62,8 +68,8 @@ export const generateApi = (data: GenerateRequest) =>
 export const createSessionApi = () =>
   api.post<{ session_id: string }>('/sessions')
 
-export const saveSkillApi = (skillMd: string) =>
-  api.post<SkillMetadata>('/skills', { skill_md: skillMd })
+export const saveSkillApi = (data: SaveSkillRequest) =>
+  api.post<SkillMetadata>('/skills', data)
 
 export const listSkillsApi = (query = '') =>
   api.get<SkillMetadata[]>('/skills', {

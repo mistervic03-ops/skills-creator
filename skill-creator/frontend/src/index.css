@@ -1249,6 +1249,61 @@ code {
   color: #8b3d34;
 }
 
+.export-save-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.export-save-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.export-save-fields label {
+  display: grid;
+  gap: 6px;
+}
+
+.export-save-fields span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.export-save-fields input {
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: 0;
+  padding: 0 12px;
+  background: var(--bg-elevated);
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.export-save-fields input:focus {
+  border-color: var(--border-strong);
+  box-shadow: var(--focus-ring);
+}
+
+.export-save-fields input:disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+}
+
+.export-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .export-mode-switch {
   width: max-content;
   display: inline-flex;
@@ -1919,6 +1974,14 @@ code {
 
   .export-actions .export-action-button {
     flex: 0 0 auto;
+  }
+
+  .export-save-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .export-save-actions {
+    justify-content: flex-start;
   }
 
   .export-metadata-row {

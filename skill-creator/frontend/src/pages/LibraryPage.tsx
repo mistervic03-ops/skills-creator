@@ -35,6 +35,13 @@ function formatCreatedAt(createdAt: string) {
   }).format(date)
 }
 
+function formatSkillMeta(createdAt: string, author: string) {
+  const createdLabel = formatCreatedAt(createdAt)
+  const trimmedAuthor = author.trim()
+
+  return trimmedAuthor ? `${createdLabel} · ${trimmedAuthor}` : createdLabel
+}
+
 function nextSkillIdAfterDelete(
   previousSkills: SkillMetadata[],
   refreshedSkills: SkillMetadata[],
@@ -321,7 +328,7 @@ export default function LibraryPage() {
                       </span>
                     )}
                     <span className="library-skill-item-meta">
-                      {formatCreatedAt(skill.created_at)}
+                      {formatSkillMeta(skill.created_at, skill.author)}
                     </span>
                   </button>
                 ))}
@@ -349,7 +356,12 @@ export default function LibraryPage() {
                 <header className="library-detail-header">
                   <div>
                     <h2>{selectedSkill.metadata.title}</h2>
-                    <p>{formatCreatedAt(selectedSkill.metadata.created_at)}</p>
+                    <p>
+                      {formatSkillMeta(
+                        selectedSkill.metadata.created_at,
+                        selectedSkill.metadata.author,
+                      )}
+                    </p>
                   </div>
 
                   <div className="library-detail-tags" aria-label="메타데이터">

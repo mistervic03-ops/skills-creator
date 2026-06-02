@@ -58,6 +58,7 @@ class GenerateResponse(BaseModel):
 
 class SaveSkillRequest(BaseModel):
     skill_md: str
+    title: Optional[str] = None
     author: Optional[str] = None
 
 
@@ -111,7 +112,11 @@ async def create_session():
 
 @router.post("/skills")
 async def save_skill(request: SaveSkillRequest):
-    return skill_library_service.save_skill(request.skill_md, request.author)
+    return skill_library_service.save_skill(
+        request.skill_md,
+        title=request.title,
+        author=request.author,
+    )
 
 
 @router.get("/skills")

@@ -1,4 +1,5 @@
 import {
+  type FormEvent,
   Fragment,
   type ReactNode,
   useMemo,
@@ -93,6 +94,31 @@ function splitFrontmatter(markdown: string) {
     metadata,
     body: normalizedMarkdown.slice(frontmatterMatch[0].length),
   }
+}
+
+function findMetadataValue(metadata: MetadataItem[], keys: string[]) {
+  const normalizedKeys = keys.map((key) => key.toLowerCase())
+
+  return (
+    metadata.find((item) =>
+      normalizedKeys.includes(item.label.toLowerCase()),
+    )?.value.trim() ?? ''
+  )
+}
+
+function parseDefaultSkillTitle(markdown: string) {
+  const { metadata, body } = splitFrontmatter(markdown)
+  const metadataTitle = findMetadataValue(metadata, ['title', 'name'])
+
+  if (metadataTitle) {
+    return metadataTitle
+  }
+
+  return body.match(/^#\s+(.+?)\s*$/m)?.[1].trim() ?? ''
+}
+
+function parseDefaultAuthor(markdown: string) {
+  return findMetadataValue(splitFrontmatter(markdown).metadata, ['author'])
 }
 
 function isHeading(line: string) {
@@ -340,7 +366,11 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
   const [currentMarkdown, setCurrentMarkdown] = useState(() => skillMd)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [saveMessage, setSaveMessage] = useState('')
+  const [isSavePanelOpen, setIsSavePanelOpen] = useState(false)
+  const [saveTitle, setSaveTitle] = useState('')
+  const [saveAuthor, setSaveAuthor] = useState('')
   const isSaving = saveStatus === 'saving'
+  const canSubmitSave = saveTitle.trim().length > 0 && !isSaving
 
   function downloadSkill() {
     const blob = new Blob([currentMarkdown], {
@@ -363,8 +393,32 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
     window.setTimeout(() => setCopyStatus('idle'), 2000)
   }
 
-  async function saveToLibrary() {
+  function openSavePanel() {
     if (isSaving) {
+      return
+    }
+
+    setSaveTitle(parseDefaultSkillTitle(currentMarkdown))
+    setSaveAuthor(parseDefaultAuthor(currentMarkdown))
+    setSaveStatus('idle')
+    setSaveMessage('')
+    setIsSavePanelOpen(true)
+  }
+
+  function cancelSave() {
+    if (!isSaving) {
+      setIsSavePanelOpen(false)
+      setSaveStatus('idle')
+      setSaveMessage('')
+    }
+  }
+
+  async function saveToLibrary(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const trimmedTitle = saveTitle.trim()
+    const trimmedAuthor = saveAuthor.trim()
+    if (!trimmedTitle || isSaving) {
       return
     }
 
@@ -372,10 +426,15 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
     setSaveMessage('')
 
     try {
-      const response = await saveSkillApi(currentMarkdown)
+      const response = await saveSkillApi({
+        skill_md: currentMarkdown,
+        title: trimmedTitle,
+        author: trimmedAuthor || undefined,
+      })
       trackRecentSkill(response.data)
       setSaveStatus('success')
       setSaveMessage(`라이브러리에 저장됨: ${response.data.title}`)
+      setIsSavePanelOpen(false)
     } catch {
       setSaveStatus('error')
       setSaveMessage('저장하지 못했습니다. 잠시 후 다시 시도해주세요.')
@@ -411,11 +470,11 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
         <div className="export-actions" aria-label="문서 작업">
           <button
             type="button"
-            onClick={saveToLibrary}
+            onClick={openSavePanel}
             className="export-action-button export-action-button-primary"
             disabled={isSaving}
           >
-            {isSaving ? '저장 중...' : 'Save to Library'}
+            Save to Library
           </button>
           <button
             type="button"
@@ -437,6 +496,49 @@ export default function SkillExport({ skillMd }: SkillExportProps) {
           </button>
         </div>
       </div>
+
+      {isSavePanelOpen && (
+        <form className="export-save-panel" onSubmit={saveToLibrary}>
+          <div className="export-save-fields">
+            <label>
+              <span>Skill Name</span>
+              <input
+                type="text"
+                value={saveTitle}
+                onChange={(event) => setSaveTitle(event.target.value)}
+                disabled={isSaving}
+                required
+              />
+            </label>
+            <label>
+              <span>Author</span>
+              <input
+                type="text"
+                value={saveAuthor}
+                onChange={(event) => setSaveAuthor(event.target.value)}
+                disabled={isSaving}
+              />
+            </label>
+          </div>
+          <div className="export-save-actions">
+            <button
+              type="button"
+              className="export-action-button"
+              onClick={cancelSave}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="export-action-button export-action-button-primary"
+              disabled={!canSubmitSave}
+            >
+              {isSaving ? '저장 중...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      )}
 
       {saveMessage && (
         <p

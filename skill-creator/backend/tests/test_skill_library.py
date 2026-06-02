@@ -39,6 +39,64 @@ def test_save_skill(monkeypatch, tmp_path):
     )
 
 
+def test_save_skill_with_explicit_title(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKILL_LIBRARY_DIR", str(tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/skills",
+        json={
+            "skill_md": "# Markdown Title\n\nBody",
+            "title": "Reusable Briefing Skill",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Reusable Briefing Skill"
+
+
+def test_explicit_title_overrides_frontmatter_and_h1(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKILL_LIBRARY_DIR", str(tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/skills",
+        json={
+            "skill_md": """---
+title: Frontmatter Title
+name: frontmatter-name
+---
+
+# H1 Title
+""",
+            "title": "Chosen Library Title",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Chosen Library Title"
+
+
+def test_author_is_saved_when_provided(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKILL_LIBRARY_DIR", str(tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/skills",
+        json={
+            "skill_md": "# Authored Skill",
+            "author": "  Mina Park  ",
+        },
+    )
+
+    assert response.status_code == 200
+    metadata = response.json()
+    assert metadata["author"] == "Mina Park"
+    assert json.loads(
+        (tmp_path / metadata["id"] / "metadata.json").read_text(encoding="utf-8")
+    )["author"] == "Mina Park"
+
+
 def test_list_skills_newest_first(monkeypatch, tmp_path):
     monkeypatch.setenv("SKILL_LIBRARY_DIR", str(tmp_path))
     client = TestClient(app)
@@ -162,7 +220,7 @@ workflow_type: transformation
     assert metadata["description"] == "Summarize pipeline changes"
     assert metadata["workflow_type"] == "transformation"
     assert metadata["tags"] == ["sales", "weekly"]
-    assert metadata["author"] == "작성자 미상"
+    assert metadata["author"] == ""
 
 
 def test_h1_fallback_title_parsing(monkeypatch, tmp_path):
@@ -173,6 +231,48 @@ def test_h1_fallback_title_parsing(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert response.json()["title"] == "Fallback Title"
+
+
+def test_empty_title_falls_back_to_frontmatter_title(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKILL_LIBRARY_DIR", str(tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/skills",
+        json={
+            "skill_md": """---
+title: Frontmatter Fallback
+---
+
+# Ignored H1
+""",
+            "title": "   ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Frontmatter Fallback"
+
+
+def test_empty_author_is_handled_safely(monkeypatch, tmp_path):
+    monkeypatch.setenv("SKILL_LIBRARY_DIR", str(tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/skills",
+        json={
+            "skill_md": """---
+author: Frontmatter Author
+---
+
+# Skill
+""",
+            "author": "   ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["author"] == "Frontmatter Author"
 
 
 def _set_created_at(storage_dir: Path, skill_id: str, created_at: str) -> None:

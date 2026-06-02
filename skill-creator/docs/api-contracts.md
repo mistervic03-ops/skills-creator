@@ -102,6 +102,7 @@
 ```json
 {
   "skill_md": "string",
+  "title": "string optional",
   "author": "string optional"
 }
 ```
@@ -123,9 +124,10 @@
 ### 동작
 - 서버에서 안전한 고유 id를 생성한다.
 - `SKILL_LIBRARY_DIR` 아래 `<id>/skill.md`와 `<id>/metadata.json`을 저장한다.
-- frontmatter의 `name`, `description`, `tags`, `workflow_type`을 metadata에 반영한다.
-- title은 frontmatter `name`, 첫 번째 H1, `Untitled Skill` 순서로 결정한다.
-- author가 없으면 `작성자 미상`을 사용한다.
+- frontmatter의 `title`, `name`, `description`, `tags`, `workflow_type`, `author`를 metadata에 반영한다.
+- title은 요청 본문의 `title`, frontmatter `title`/`name`, 첫 번째 H1, `Untitled Skill` 순서로 결정한다.
+- author는 요청 본문의 `author`, frontmatter `author`, 빈 문자열 순서로 결정한다.
+- 저장된 `skill.md` 내용은 요청 본문의 `skill_md` 그대로 유지한다.
 
 ---
 

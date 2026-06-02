@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_AUTHOR = "작성자 미상"
+DEFAULT_AUTHOR = ""
 DEFAULT_STORAGE_DIR = "./data/skills"
 DEFAULT_TITLE = "Untitled Skill"
 FRONTMATTER_RE = re.compile(r"\A---\s*\n(?P<body>.*?)\n---", re.DOTALL)
@@ -29,20 +29,27 @@ class InvalidSkillIdError(Exception):
 
 
 class SkillLibraryService:
-    def save_skill(self, skill_md: str, author: str | None = None) -> dict[str, Any]:
+    def save_skill(
+        self,
+        skill_md: str,
+        title: str | None = None,
+        author: str | None = None,
+    ) -> dict[str, Any]:
         skill_id = self._generate_id()
         skill_dir = self._skill_dir(skill_id)
         skill_dir.mkdir(parents=True, exist_ok=False)
 
         now = self._now()
         parsed = self._parse_metadata(skill_md)
+        final_title = (title or "").strip() or parsed["title"]
+        final_author = (author or "").strip() or parsed["author"]
         metadata = {
             "id": skill_id,
-            "title": parsed["title"],
+            "title": final_title,
             "description": parsed["description"],
             "workflow_type": parsed["workflow_type"],
             "tags": parsed["tags"],
-            "author": author or DEFAULT_AUTHOR,
+            "author": final_author,
             "created_at": now,
             "updated_at": now,
         }
@@ -141,7 +148,7 @@ class SkillLibraryService:
     @classmethod
     def _parse_metadata(cls, skill_md: str) -> dict[str, Any]:
         frontmatter = cls._parse_frontmatter(skill_md)
-        title = str(frontmatter.get("name") or "").strip()
+        title = str(frontmatter.get("title") or frontmatter.get("name") or "").strip()
         if not title:
             title = cls._parse_h1(skill_md)
         if not title:
@@ -152,6 +159,7 @@ class SkillLibraryService:
             "description": str(frontmatter.get("description") or "").strip(),
             "workflow_type": str(frontmatter.get("workflow_type") or "").strip(),
             "tags": cls._normalize_tags(frontmatter.get("tags")),
+            "author": str(frontmatter.get("author") or "").strip(),
         }
 
     @staticmethod
@@ -187,7 +195,14 @@ class SkillLibraryService:
                 continue
 
             key, value = key_value.groups()
-            if key not in {"name", "description", "tags", "workflow_type"}:
+            if key not in {
+                "name",
+                "title",
+                "description",
+                "tags",
+                "workflow_type",
+                "author",
+            }:
                 continue
 
             if key == "tags":
