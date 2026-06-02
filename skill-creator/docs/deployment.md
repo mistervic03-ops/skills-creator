@@ -24,9 +24,23 @@ Set the required Anthropic API key:
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
-Generated skills are stored on the local filesystem. The storage path is
-controlled by `SKILL_LIBRARY_DIR` and defaults to `./data/skills`. An external
-database is intentionally not used for V1.
+Generated skills are stored on the backend container's local filesystem under
+`SKILL_LIBRARY_DIR=/app/data/skills`. An external database is intentionally not
+used for V1.
+
+In Docker Compose, `/app/data` is backed by the named volume
+`skill-library-data`. Skill files are written under:
+
+```text
+/app/data/skills/<skill_id>/skill.md
+/app/data/skills/<skill_id>/metadata.json
+```
+
+The named volume is local to the Docker host and survives container recreation,
+image rebuilds, and ordinary redeploys. Running `docker compose down` removes the
+containers and network, but it does not delete `skill-library-data`. Do not use
+`docker compose down -v` unless you intentionally want to delete the saved Skill
+Library data.
 
 Do not commit `.env` or real API keys.
 
@@ -110,3 +124,6 @@ docker compose up -d --build
 docker compose ps
 curl http://localhost/api/health
 ```
+
+Saved skills remain in the `skill-library-data` volume during this rebuild and
+restart flow.

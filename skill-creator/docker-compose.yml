@@ -4,6 +4,10 @@ services:
       context: ./backend
     env_file:
       - .env
+    environment:
+      SKILL_LIBRARY_DIR: /app/data/skills
+    volumes:
+      - skill-library-data:/app/data
     expose:
       - "8000"
 
@@ -14,3 +18,6 @@ services:
       - backend
     ports:
       - "80:80"
+
+volumes:
+  skill-library-data:
