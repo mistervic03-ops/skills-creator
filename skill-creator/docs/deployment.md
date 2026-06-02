@@ -5,9 +5,9 @@ This deployment is for internal champion testing on the DGX Spark server.
 ## Target
 
 - Server: Ubuntu Linux on ARM64 / aarch64
-- URL: `http://192.168.3.41`
+- URL: `http://192.168.3.41:8080`
 - Runtime: Docker and Docker Compose
-- Public service: frontend on port `80`
+- Public service: frontend on host port `8080`, mapped to container port `80`
 - Internal service: backend on port `8000` inside the Compose network
 
 ## Environment
@@ -97,15 +97,15 @@ docker compose logs -f frontend
 ```sh
 docker compose up -d --build
 docker compose ps
-curl http://localhost
-curl http://localhost/api/health
+curl http://localhost:8080
+curl http://localhost:8080/api/health
 ```
 
 From another machine on the internal network:
 
 ```sh
-curl http://192.168.3.41
-curl http://192.168.3.41/api/health
+curl http://192.168.3.41:8080
+curl http://192.168.3.41:8080/api/health
 ```
 
 The health endpoint should return:
@@ -122,7 +122,7 @@ Pull the latest code on the DGX Spark server, then rebuild and restart:
 git pull
 docker compose up -d --build
 docker compose ps
-curl http://localhost/api/health
+curl http://localhost:8080/api/health
 ```
 
 Saved skills remain in the `skill-library-data` volume during this rebuild and
